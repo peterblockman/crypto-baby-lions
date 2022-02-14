@@ -60,7 +60,7 @@ contract LittleLions is Ownable, ERC721('Little Lions', 'LiL'), IERC2981 {
         return (address(this), (_salePrice * royalty) / BASE);
     }
 
-    function mint(uint256 quantity) public payable onlyOwner {
+    function mint(uint256 quantity) public payable {
         require(_tokenIds.current() + quantity < MAX_TOKENS, 'LittleLions:All tokens are minted');
 
         uint256 accountNewMintCount = mintCount[msg.sender] + quantity;
@@ -68,7 +68,7 @@ contract LittleLions is Ownable, ERC721('Little Lions', 'LiL'), IERC2981 {
         if (mintWhitelist[msg.sender] > 0) {
             require(accountNewMintCount <= mintWhitelist[msg.sender], 'LittleLions:All of your tokens are minted');
         } else {
-            require(accountNewMintCount < MAX_MINT, 'LittleLions:All of your tokens are minted');
+            require(accountNewMintCount <= MAX_MINT, 'LittleLions:All of your tokens are minted');
             require(startBlock <= block.number, 'LittleLions:Minting time is not started');
             uint256 price = quantity * MINT_PRICE;
             require(msg.value >= price, 'LittleLions:Need to send more ETH');

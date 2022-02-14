@@ -1,5 +1,7 @@
 require("@nomiclabs/hardhat-ethers");
 require("@nomiclabs/hardhat-etherscan");
+require("hardhat-gas-reporter");
+
 
 const fs = require('fs');
 const privateKeys = fs.readFileSync(".secret").toString().trim().split('\n');
@@ -7,7 +9,7 @@ const etherscanApi = process.env.ETHSCAN_KEY ?? "";
 const infuraApi = process.env.INFURA_KEY ?? "";
 
 module.exports = {
-  defaultNetwork: "localhost",
+  defaultNetwork: "hardhat",
   networks: {
     localhost: {
       url: "http://127.0.0.1:8545"
