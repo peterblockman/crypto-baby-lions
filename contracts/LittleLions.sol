@@ -13,6 +13,11 @@ contract LittleLions is Ownable, ERC721('Little Lions', 'CBL'), IERC2981 {
     using Strings for uint256;
     using Counters for Counters.Counter;
 
+    struct WhitelistInfo {
+        uint256 quantity;
+        uint256 price;
+    }
+
     uint16 internal royalty = 500; // base 10000, 5%
     uint16 public constant BASE = 10000;
     uint256 public constant MAX_TOKENS = 10000;
@@ -25,7 +30,7 @@ contract LittleLions is Ownable, ERC721('Little Lions', 'CBL'), IERC2981 {
     address public withdrawAccount;
     Counters.Counter private _tokenIds;
 
-    mapping(address => uint256) private mintWhitelist;
+    mapping(address => WhitelistInfo) private mintWhitelist;
     mapping(address => uint256) private mintCount;
 
     constructor(string memory _contractMetadata, string memory baseURI_) {
@@ -38,7 +43,7 @@ contract LittleLions is Ownable, ERC721('Little Lions', 'CBL'), IERC2981 {
     }
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
-        require(_exists(tokenId), 'LittleLions: URI query for nonexistent token');
+        require(_exists(tokenId), 'CBL: URI query for nonexistent token');
 
         string memory baseContractURI = _baseURI();
         return bytes(baseContractURI).length > 0 ? string(abi.encodePacked(baseContractURI, tokenId.toString())) : '';
@@ -62,20 +67,25 @@ contract LittleLions is Ownable, ERC721('Little Lions', 'CBL'), IERC2981 {
     }
 
     function mint(uint256 quantity) public payable {
-        require(_tokenIds.current() + quantity < MAX_TOKENS, 'LittleLions:All tokens are minted');
+        require(_tokenIds.current() + quantity < MAX_TOKENS, 'CBL: That many tokens are not available');
 
         uint256 accountNewMintCount = mintCount[msg.sender] + quantity;
+        WhitelistInfo memory whitelistInfo = mintWhitelist[msg.sender];
 
-        if (mintWhitelist[msg.sender] > 0) {
-            require(accountNewMintCount <= mintWhitelist[msg.sender], 'LittleLions:All of your tokens are minted');
+        uint256 price = MINT_PRICE;
+
+        if (whitelistInfo.quantity > 0) {
+            require(accountNewMintCount <= whitelistInfo.quantity, 'CBL: That many tokens are not available for you');
+            price = whitelistInfo.price;
         } else {
-            require(accountNewMintCount <= MAX_MINT, 'LittleLions:All of your tokens are minted');
-            require(startBlock <= block.number, 'LittleLions:Minting time is not started');
-            uint256 price = quantity * MINT_PRICE;
-            require(msg.value >= price, 'LittleLions:Need to send more ETH');
-            if (msg.value > price) {
-                payable(msg.sender).transfer(msg.value - price);
-            }
+            require(accountNewMintCount <= MAX_MINT, 'CBL: That many tokens are not available for you');
+            require(startBlock <= block.number, 'CBL: Minting time is not started');
+        }
+
+        uint256 totalPrice = quantity * price;
+        require(msg.value >= totalPrice, 'CBL: Need to send more ethers');
+        if (msg.value > totalPrice) {
+            payable(msg.sender).transfer(msg.value - totalPrice);
         }
 
         mintCount[msg.sender] = accountNewMintCount;
@@ -83,6 +93,18 @@ contract LittleLions is Ownable, ERC721('Little Lions', 'CBL'), IERC2981 {
             _tokenIds.increment();
             _safeMint(msg.sender, _tokenIds.current());
         }
+    }
+
+    function addWhitelist(
+        address[] memory accounts,
+        uint256 quantity,
+        uint256 price
+    ) public onlyOwner {
+        WhitelistInfo memory whitelistInfo = WhitelistInfo(quantity, price);
+        for (uint256 i = 0; i < accounts.length; i++) {
+            mintWhitelist[accounts[i]] = whitelistInfo;
+        }
+        emit WhitelistAdded(accounts, quantity, price);
     }
 
     function setStartBlock(uint256 _block) public onlyOwner {
@@ -95,38 +117,31 @@ contract LittleLions is Ownable, ERC721('Little Lions', 'CBL'), IERC2981 {
     }
 
     function setRoyalty(uint16 _royalty) public onlyOwner {
-        require(_royalty >= 0 && _royalty <= 1000, 'LittleLions:Royalty must be between 0% and 10%.');
+        require(_royalty >= 0 && _royalty <= 1000, 'CBL: Royalty must be between 0% and 10%.');
 
         royalty = _royalty;
     }
 
-    function addWhitelist(address[] memory accounts, uint256 quantity) public onlyOwner {
-        for (uint256 i = 0; i < accounts.length; i++) {
-            mintWhitelist[accounts[i]] = quantity;
-        }
-        emit WhitelistAdded(accounts, quantity);
-    }
-
     function setWithdrawAccount(address account) public onlyOwner {
-        require(withdrawAccount != account, 'LittleLions:Already set');
+        require(withdrawAccount != account, 'CBL:Already set');
         withdrawAccount = account;
     }
 
     function withdraw(uint256 _amount) public {
-        require(msg.sender == withdrawAccount, 'LittleLions:Not allowed');
+        require(msg.sender == withdrawAccount, 'CBL:Not allowed');
 
         uint256 balance = address(this).balance;
-        require(_amount <= balance, 'LittleLions:Insufficient funds');
+        require(_amount <= balance, 'CBL:Insufficient funds');
 
         bool success;
         (success, ) = payable(msg.sender).call{value: _amount}('');
-        require(success, 'LittleLions:Withdraw Failed');
+        require(success, 'CBL:Withdraw Failed');
 
         emit ContractWithdraw(msg.sender, _amount);
     }
 
     function withdrawTokens(address _tokenContract) public {
-        require(msg.sender == withdrawAccount, 'LittleLions:Not allowed');
+        require(msg.sender == withdrawAccount, 'CBL:Not allowed');
         IERC20 tokenContract = IERC20(_tokenContract);
 
         uint256 _amount = tokenContract.balanceOf(address(this));
@@ -138,6 +153,6 @@ contract LittleLions is Ownable, ERC721('Little Lions', 'CBL'), IERC2981 {
     }
 
     event ContractWithdraw(address indexed withdrawAddress, uint256 amount);
-    event WhitelistAdded(address[] accounts, uint256 quantity);
+    event WhitelistAdded(address[] accounts, uint256 quantity, uint256 price);
     event StartTimeUpdated(uint256 blockNumber);
 }
