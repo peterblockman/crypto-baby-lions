@@ -9,7 +9,7 @@ import '@openzeppelin/contracts/interfaces/IERC2981.sol';
 import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 
-contract LittleLions is Ownable, ERC721('Little Lions', 'LiL'), IERC2981 {
+contract LittleLions is Ownable, ERC721('Little Lions', 'CBL'), IERC2981 {
     using Strings for uint256;
     using Counters for Counters.Counter;
 
