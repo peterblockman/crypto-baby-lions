@@ -28,7 +28,7 @@ describe('Little lions contract', function () {
   // time. It receives a callback, which can be async.
   beforeEach(async function () {
     // Get the ContractFactory and Signers here.
-    instance = await ethers.getContractFactory('LittleLions')
+    instance = await ethers.getContractFactory('CryptoBabyLions')
     ;[owner, addr1, addr2, ...addrs] = await ethers.getSigners()
 
     // To deploy our contract, we just have to call instance.deploy() and await
@@ -55,11 +55,11 @@ describe('Little lions contract', function () {
 
   describe('Whitelist Mint', function () {
     it('Should mint nfts by whitelisted wallets', async function () {
-      await hardhatInstance.addWhitelist([addr1.address], 5)
-      await hardhatInstance.connect(addr1).mint(5)
+      await hardhatInstance.addWhitelist([addr1.address], 50, 0)
+      await hardhatInstance.connect(addr1).mint(50)
 
       const addr1Balance = await hardhatInstance.balanceOf(addr1.address)
-      expect(addr1Balance.toNumber()).to.equal(5)
+      expect(addr1Balance.toNumber()).to.equal(50)
     })
 
     it('Should mint nfts by public', async function () {

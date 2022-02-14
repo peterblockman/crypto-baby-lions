@@ -9,7 +9,7 @@ import '@openzeppelin/contracts/interfaces/IERC2981.sol';
 import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 
-contract LittleLions is Ownable, ERC721('Little Lions', 'CBL'), IERC2981 {
+contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC2981 {
     using Strings for uint256;
     using Counters for Counters.Counter;
 
@@ -30,12 +30,15 @@ contract LittleLions is Ownable, ERC721('Little Lions', 'CBL'), IERC2981 {
     address public withdrawAccount;
     Counters.Counter private _tokenIds;
 
-    mapping(address => WhitelistInfo) private mintWhitelist;
-    mapping(address => uint256) private mintCount;
+    Counters.Counter private whitelistPlansCounter;
+    mapping(uint256 => WhitelistInfo) private whitelistPlans;
+    mapping(address => uint256) private mintWhitelist;
+    mapping(address => uint256) private mintedCount;
 
     constructor(string memory _contractMetadata, string memory baseURI_) {
         contractMetadata = _contractMetadata;
         baseURI = baseURI_;
+        whitelistPlansCounter.increment();
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721, IERC165) returns (bool) {
@@ -69,12 +72,13 @@ contract LittleLions is Ownable, ERC721('Little Lions', 'CBL'), IERC2981 {
     function mint(uint256 quantity) public payable {
         require(_tokenIds.current() + quantity < MAX_TOKENS, 'CBL: That many tokens are not available');
 
-        uint256 accountNewMintCount = mintCount[msg.sender] + quantity;
-        WhitelistInfo memory whitelistInfo = mintWhitelist[msg.sender];
+        uint256 accountNewMintCount = mintedCount[msg.sender] + quantity;
+        uint256 whitelistPlan = mintWhitelist[msg.sender];
+        WhitelistInfo memory whitelistInfo = whitelistPlans[whitelistPlan];
 
         uint256 price = MINT_PRICE;
 
-        if (whitelistInfo.quantity > 0) {
+        if (whitelistPlan > 0) {
             require(accountNewMintCount <= whitelistInfo.quantity, 'CBL: That many tokens are not available for you');
             price = whitelistInfo.price;
         } else {
@@ -88,7 +92,7 @@ contract LittleLions is Ownable, ERC721('Little Lions', 'CBL'), IERC2981 {
             payable(msg.sender).transfer(msg.value - totalPrice);
         }
 
-        mintCount[msg.sender] = accountNewMintCount;
+        mintedCount[msg.sender] = accountNewMintCount;
         for (uint256 i = 0; i < quantity; i++) {
             _tokenIds.increment();
             _safeMint(msg.sender, _tokenIds.current());
@@ -101,9 +105,12 @@ contract LittleLions is Ownable, ERC721('Little Lions', 'CBL'), IERC2981 {
         uint256 price
     ) public onlyOwner {
         WhitelistInfo memory whitelistInfo = WhitelistInfo(quantity, price);
+        uint whiteListPlanIndex = whitelistPlansCounter.current();
+        whitelistPlans[whiteListPlanIndex] = WhitelistInfo(quantity, price);
         for (uint256 i = 0; i < accounts.length; i++) {
-            mintWhitelist[accounts[i]] = whitelistInfo;
+            mintWhitelist[accounts[i]] = whiteListPlanIndex;
         }
+        whitelistPlansCounter.increment();
         emit WhitelistAdded(accounts, quantity, price);
     }
 
