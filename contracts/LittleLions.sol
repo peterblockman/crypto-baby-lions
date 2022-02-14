@@ -104,7 +104,6 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
         uint256 quantity,
         uint256 price
     ) public onlyOwner {
-        WhitelistInfo memory whitelistInfo = WhitelistInfo(quantity, price);
         uint whiteListPlanIndex = whitelistPlansCounter.current();
         whitelistPlans[whiteListPlanIndex] = WhitelistInfo(quantity, price);
         for (uint256 i = 0; i < accounts.length; i++) {
