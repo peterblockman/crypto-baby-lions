@@ -3,13 +3,12 @@ pragma solidity ^0.8.9;
 
 import '@openzeppelin/contracts/utils/Counters.sol';
 import '@openzeppelin/contracts/utils/Strings.sol';
-import '@openzeppelin/contracts/interfaces/IERC20.sol';
 import '@openzeppelin/contracts/interfaces/IERC165.sol';
 import '@openzeppelin/contracts/interfaces/IERC2981.sol';
 import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 
-contract LittleLions is Ownable, ERC721, IERC2981 {
+contract LittleLions is Ownable, ERC721('Little Lions', 'LiL'), IERC2981 {
     using Strings for uint256;
     using Counters for Counters.Counter;
 
@@ -28,7 +27,7 @@ contract LittleLions is Ownable, ERC721, IERC2981 {
     mapping(address => uint256) private mintWhitelist;
     mapping(address => uint256) private mintCount;
 
-    constructor(string memory _contractMetadata, string memory baseURI_) ERC721('Little Lions', 'LiL') {
+    constructor(string memory _contractMetadata, string memory baseURI_) {
         contractMetadata = _contractMetadata;
         baseURI = baseURI_;
     }
@@ -122,22 +121,14 @@ contract LittleLions is Ownable, ERC721, IERC2981 {
         (success, ) = payable(msg.sender).call{value: _amount}('');
         require(success, 'LittleLions:Withdraw Failed');
 
-        emit ContractWithdraw(msg.sender, msg.sender, _amount);
-    }
-
-    function withdrawTokens(address _tokenContract) public {
-        require(msg.sender == withdrawAccount, 'LittleLions:Not allowed');
-        IERC20 tokenContract = IERC20(_tokenContract);
-
-        uint256 _amount = tokenContract.balanceOf(address(this));
-        tokenContract.transfer(msg.sender, _amount);
+        emit ContractWithdraw(msg.sender, _amount);
     }
 
     function _baseURI() internal view virtual override returns (string memory) {
         return baseURI;
     }
 
-    event ContractWithdraw(address indexed initiator, address indexed withdrawAddress, uint256 amount);
+    event ContractWithdraw(address indexed withdrawAddress, uint256 amount);
     event WhitelistAdded(address[] accounts, uint256 quantity);
     event StartTimeUpdated(uint256 blockNumber);
 }
