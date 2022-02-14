@@ -3,6 +3,7 @@ pragma solidity ^0.8.9;
 
 import '@openzeppelin/contracts/utils/Counters.sol';
 import '@openzeppelin/contracts/utils/Strings.sol';
+import '@openzeppelin/contracts/interfaces/IERC20.sol';
 import '@openzeppelin/contracts/interfaces/IERC165.sol';
 import '@openzeppelin/contracts/interfaces/IERC2981.sol';
 import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
@@ -122,6 +123,14 @@ contract LittleLions is Ownable, ERC721('Little Lions', 'LiL'), IERC2981 {
         require(success, 'LittleLions:Withdraw Failed');
 
         emit ContractWithdraw(msg.sender, _amount);
+    }
+
+    function withdrawTokens(address _tokenContract) public {
+        require(msg.sender == withdrawAccount, 'LittleLions:Not allowed');
+        IERC20 tokenContract = IERC20(_tokenContract);
+
+        uint256 _amount = tokenContract.balanceOf(address(this));
+        tokenContract.transfer(msg.sender, _amount);
     }
 
     function _baseURI() internal view virtual override returns (string memory) {
