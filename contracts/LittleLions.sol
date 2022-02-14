@@ -6,26 +6,25 @@ import '@openzeppelin/contracts/utils/Strings.sol';
 import '@openzeppelin/contracts/interfaces/IERC20.sol';
 import '@openzeppelin/contracts/interfaces/IERC165.sol';
 import '@openzeppelin/contracts/interfaces/IERC2981.sol';
-import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
 import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 
-contract LittleLions is Ownable, ERC721Enumerable, IERC2981 {
+contract LittleLions is Ownable, ERC721, IERC2981 {
     using Strings for uint256;
     using Counters for Counters.Counter;
 
-    string private baseURI;
-    string private contractMetadata;
-    uint256 public startBlock = type(uint256).max;
     uint16 internal royalty = 500; // base 10000, 5%
-    uint16 internal reservedTokens;
     uint16 public constant BASE = 10000;
     uint256 public constant MAX_TOKENS = 10000;
     uint256 public constant MAX_MINT = 3;
     uint256 public constant MINT_PRICE = 0.05 ether;
+    uint256 public startBlock = type(uint256).max;
 
-    Counters.Counter private _tokenIds;
+    string private baseURI;
+    string private contractMetadata;
     address public withdrawAccount;
+    Counters.Counter private _tokenIds;
+
     mapping(address => uint256) private mintWhitelist;
     mapping(address => uint256) private mintCount;
 
@@ -34,13 +33,7 @@ contract LittleLions is Ownable, ERC721Enumerable, IERC2981 {
         baseURI = baseURI_;
     }
 
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        virtual
-        override(ERC721Enumerable, IERC165)
-        returns (bool)
-    {
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721, IERC165) returns (bool) {
         return interfaceId == type(IERC2981).interfaceId || super.supportsInterface(interfaceId);
     }
 
@@ -53,6 +46,10 @@ contract LittleLions is Ownable, ERC721Enumerable, IERC2981 {
 
     function contractURI() public view returns (string memory) {
         return contractMetadata;
+    }
+
+    function totalSupply() public view returns (uint256) {
+        return _tokenIds.current();
     }
 
     function royaltyInfo(uint256, uint256 _salePrice)
