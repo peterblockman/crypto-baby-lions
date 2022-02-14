@@ -38,7 +38,7 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
     constructor(string memory _contractMetadata, string memory baseURI_) {
         contractMetadata = _contractMetadata;
         baseURI = baseURI_;
-        whitelistPlansCounter.increment();
+        whitelistPlansCounter.increment(); // index 0 is reserved for public so start from 1
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721, IERC165) returns (bool) {
