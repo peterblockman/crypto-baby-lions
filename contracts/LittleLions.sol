@@ -35,6 +35,11 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
     mapping(address => uint256) private mintWhitelist;
     mapping(address => uint256) private mintedCount;
 
+    modifier onlyWhitdrawable {
+        require(_msgSender() == withdrawAccount, 'CBL: Not allowed');
+        _;
+    }
+
     constructor(string memory _contractMetadata, string memory baseURI_) {
         contractMetadata = _contractMetadata;
         baseURI = baseURI_;
@@ -71,9 +76,9 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
 
     function mint(uint256 quantity) public payable {
         require(_tokenIds.current() + quantity < MAX_TOKENS, 'CBL: That many tokens are not available');
-
-        uint256 accountNewMintCount = mintedCount[msg.sender] + quantity;
-        uint256 whitelistPlan = mintWhitelist[msg.sender];
+        address msgSender = _msgSender();
+        uint256 accountNewMintCount = mintedCount[msgSender] + quantity;
+        uint256 whitelistPlan = mintWhitelist[msgSender];
         WhitelistInfo memory whitelistInfo = whitelistPlans[whitelistPlan];
 
         uint256 price = MINT_PRICE;
@@ -89,13 +94,13 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
         uint256 totalPrice = quantity * price;
         require(msg.value >= totalPrice, 'CBL: Need to send more ethers');
         if (msg.value > totalPrice) {
-            payable(msg.sender).transfer(msg.value - totalPrice);
+            payable(msgSender).transfer(msg.value - totalPrice);
         }
 
-        mintedCount[msg.sender] = accountNewMintCount;
+        mintedCount[msgSender] = accountNewMintCount;
         for (uint256 i = 0; i < quantity; i++) {
             _tokenIds.increment();
-            _safeMint(msg.sender, _tokenIds.current());
+            _safeMint(msgSender, _tokenIds.current());
         }
     }
 
@@ -129,25 +134,23 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
         withdrawAccount = account;
     }
 
-    function withdraw(uint256 _amount) public {
-        require(msg.sender == withdrawAccount, 'CBL:Not allowed');
+    function withdraw(uint256 _amount) public onlyWhitdrawable {
 
         uint256 balance = address(this).balance;
-        require(_amount <= balance, 'CBL:Insufficient funds');
+        require(_amount <= balance, 'CBL: Insufficient funds');
 
         bool success;
-        (success, ) = payable(msg.sender).call{value: _amount}('');
-        require(success, 'CBL:Withdraw Failed');
+        (success, ) = payable(_msgSender()).call{value: _amount}('');
+        require(success, 'CBL: Withdraw Failed');
 
-        emit ContractWithdraw(msg.sender, _amount);
+        emit ContractWithdraw(_msgSender(), _amount);
     }
 
-    function withdrawTokens(address _tokenContract) public {
-        require(msg.sender == withdrawAccount, 'CBL:Not allowed');
+    function withdrawTokens(address _tokenContract) public onlyWhitdrawable {
         IERC20 tokenContract = IERC20(_tokenContract);
 
         uint256 _amount = tokenContract.balanceOf(address(this));
-        tokenContract.transfer(msg.sender, _amount);
+        tokenContract.transfer(_msgSender(), _amount);
     }
 
     function _baseURI() internal view virtual override returns (string memory) {
