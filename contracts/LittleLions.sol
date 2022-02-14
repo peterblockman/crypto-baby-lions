@@ -118,10 +118,6 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
         emit StartTimeUpdated(_block);
     }
 
-    function setBaseURI(string memory baseContractURI) public onlyOwner {
-        baseURI = baseContractURI;
-    }
-
     function setRoyalty(uint16 _royalty) public onlyOwner {
         require(_royalty >= 0 && _royalty <= 1000, 'CBL: Royalty must be between 0% and 10%.');
 
