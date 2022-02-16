@@ -19,24 +19,26 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
     }
 
     uint16 internal royalty = 500; // base 10000, 5%
+    uint16 public constant MAX_PRE_MINT = 500;
     uint16 public constant BASE = 10000;
-    uint256 public constant MAX_TOKENS = 10000;
-    uint256 public constant MAX_MINT = 3;
-    uint256 public constant MINT_PRICE = 0.05 ether;
+    uint16 public constant MAX_TOKENS = 8898;
+    uint16 public constant MAX_MINT = 3;
+    uint256 public constant MINT_PRICE = 0.065 ether;
     uint256 public startBlock = type(uint256).max;
 
     string private baseURI;
     string private contractMetadata;
     address public withdrawAccount;
     Counters.Counter private _tokenIds;
+    Counters.Counter private _preMintTokenIds;
 
     Counters.Counter private whitelistPlansCounter;
     mapping(uint256 => WhitelistInfo) private whitelistPlans;
     mapping(address => uint256) private mintWhitelist;
     mapping(address => uint256) private mintedCount;
 
-    modifier onlyWhitdrawable {
-        require(_msgSender() == withdrawAccount, 'CBL: Not allowed');
+    modifier onlyWhitdrawable() {
+        require(_msgSender() == withdrawAccount, 'CBL: Not authorzed to withdraw');
         _;
     }
 
@@ -74,22 +76,36 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
         return (address(this), (_salePrice * royalty) / BASE);
     }
 
+    function preMint() public {
+        address msgSender = _msgSender();
+        require(_tokenIds.current() < MAX_TOKENS, 'CBL: That many tokens are not available');
+        require(_preMintTokenIds.current() < MAX_PRE_MINT, 'CBL: No more tokens to pre-mint');
+        require(mintedCount[msgSender] == 0, 'CBL: You can only pre-mint once');
+
+        mintedCount[msgSender] = 1;
+        _safeMint(msgSender, _tokenIds.current());
+        _preMintTokenIds.increment();
+        _tokenIds.increment();
+    }
+
     function mint(uint256 quantity) public payable {
-        require(_tokenIds.current() + quantity < MAX_TOKENS, 'CBL: That many tokens are not available');
+        require(_tokenIds.current() + quantity <= MAX_TOKENS, 'CBL: That many tokens are not available');
         address msgSender = _msgSender();
         uint256 accountNewMintCount = mintedCount[msgSender] + quantity;
         uint256 whitelistPlan = mintWhitelist[msgSender];
         WhitelistInfo memory whitelistInfo = whitelistPlans[whitelistPlan];
 
         uint256 price = MINT_PRICE;
+        uint256 maxMintCount = MAX_MINT;
 
         if (whitelistPlan > 0) {
-            require(accountNewMintCount <= whitelistInfo.quantity, 'CBL: That many tokens are not available for you');
+            maxMintCount = whitelistInfo.quantity;
             price = whitelistInfo.price;
         } else {
-            require(accountNewMintCount <= MAX_MINT, 'CBL: That many tokens are not available for you');
             require(startBlock <= block.number, 'CBL: Minting time is not started');
         }
+
+        require(accountNewMintCount <= maxMintCount, 'CBL: That many tokens are not available this account');
 
         uint256 totalPrice = quantity * price;
         require(msg.value >= totalPrice, 'CBL: Need to send more ethers');
@@ -99,8 +115,8 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
 
         mintedCount[msgSender] = accountNewMintCount;
         for (uint256 i = 0; i < quantity; i++) {
-            _tokenIds.increment();
             _safeMint(msgSender, _tokenIds.current());
+            _tokenIds.increment();
         }
     }
 
@@ -109,7 +125,7 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
         uint256 quantity,
         uint256 price
     ) public onlyOwner {
-        uint whiteListPlanIndex = whitelistPlansCounter.current();
+        uint256 whiteListPlanIndex = whitelistPlansCounter.current();
         whitelistPlans[whiteListPlanIndex] = WhitelistInfo(quantity, price);
         for (uint256 i = 0; i < accounts.length; i++) {
             mintWhitelist[accounts[i]] = whiteListPlanIndex;
@@ -124,18 +140,17 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
     }
 
     function setRoyalty(uint16 _royalty) public onlyOwner {
-        require(_royalty >= 0 && _royalty <= 1000, 'CBL: Royalty must be between 0% and 10%.');
+        require(_royalty >= 0 && _royalty <= 1000, 'CBL: Royalty must be between 0% and 10%');
 
         royalty = _royalty;
     }
 
     function setWithdrawAccount(address account) public onlyOwner {
-        require(withdrawAccount != account, 'CBL:Already set');
+        require(withdrawAccount != account, 'CBL: Already set');
         withdrawAccount = account;
     }
 
     function withdraw(uint256 _amount) public onlyWhitdrawable {
-
         uint256 balance = address(this).balance;
         require(_amount <= balance, 'CBL: Insufficient funds');
 
@@ -153,8 +168,11 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
         tokenContract.transfer(_msgSender(), _amount);
     }
 
-    function _baseURI() internal view virtual override returns (string memory) {
+    function _baseURI() internal view override returns (string memory) {
         return baseURI;
+    }
+    function _exists(uint256 tokenId) internal view override returns (bool) {
+        return tokenId < _tokenIds.current();
     }
 
     event ContractWithdraw(address indexed withdrawAddress, uint256 amount);
