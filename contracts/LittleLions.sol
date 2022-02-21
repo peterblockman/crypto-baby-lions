@@ -23,7 +23,7 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
     uint16 public constant BASE = 10000;
     uint16 public constant MAX_TOKENS = 8898;
     uint16 public constant MAX_MINT = 3;
-    uint256 public constant MINT_PRICE = 0.065 ether;
+    uint256 public constant MINT_PRICE = 0.05 ether;
     uint256 public startBlock = type(uint256).max;
 
     string private baseURI;
@@ -31,11 +31,10 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
     address public withdrawAccount;
     Counters.Counter private _tokenIds;
     Counters.Counter private _preMintTokenIds;
-
     Counters.Counter private whitelistPlansCounter;
-    mapping(uint256 => WhitelistInfo) private whitelistPlans;
-    mapping(address => uint256) private mintWhitelist;
-    mapping(address => uint256) private mintedCount;
+    mapping(uint256 => WhitelistInfo) public whitelistPlans;
+    mapping(address => uint256) public mintWhitelist;
+    mapping(address => uint256) public mintedCount;
 
     modifier onlyWhitdrawable() {
         require(_msgSender() == withdrawAccount, 'CBL: Not authorzed to withdraw');
@@ -65,6 +64,10 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
 
     function totalSupply() public view returns (uint256) {
         return _tokenIds.current();
+    }
+
+    function totalPreMinted() public view returns (uint256) {
+        return _preMintTokenIds.current();
     }
 
     function royaltyInfo(uint256, uint256 _salePrice)
