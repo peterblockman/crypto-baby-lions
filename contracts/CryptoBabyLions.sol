@@ -24,9 +24,10 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
     uint16 public constant MAX_TOKENS = 8898;
     uint16 public constant MAX_MINT = 3;
     uint256 public constant MINT_PRICE = 0.05 ether;
-    uint256 public startBlock = type(uint256).max;
+    uint256 public startBlock = type(uint256).max - 1;
 
     string private baseURI;
+    string private centralizedURI;
     string private contractMetadata;
     address public withdrawAccount;
     Counters.Counter private _tokenIds;
@@ -41,9 +42,10 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
         _;
     }
 
-    constructor(string memory _contractMetadata, string memory baseURI_) {
+    constructor(string memory _contractMetadata, string memory ipfsURI, string memory _centralizedURI) {
         contractMetadata = _contractMetadata;
-        baseURI = baseURI_;
+        baseURI = ipfsURI;
+        centralizedURI = _centralizedURI;
         whitelistPlansCounter.increment(); // index 0 is reserved for public so start from 1
     }
 
@@ -55,7 +57,11 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
         require(_exists(tokenId), 'CBL: URI query for nonexistent token');
 
         string memory baseContractURI = _baseURI();
-        return bytes(baseContractURI).length > 0 ? string(abi.encodePacked(baseContractURI, tokenId.toString())) : '';
+        if (totalSupply() < MAX_TOKENS) {
+            baseContractURI =  centralizedURI;
+        }
+
+        return string(abi.encodePacked(baseContractURI, tokenId.toString()));
     }
 
     function contractURI() public view returns (string memory) {
@@ -135,6 +141,10 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
         }
         whitelistPlansCounter.increment();
         emit WhitelistAdded(accounts, quantity, price);
+    }
+
+    function setContractMetadata(string memory _contractMetadata) public onlyOwner {
+        contractMetadata = _contractMetadata;
     }
 
     function setStartBlock(uint256 _block) public onlyOwner {
