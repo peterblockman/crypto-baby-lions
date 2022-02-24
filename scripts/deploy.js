@@ -7,7 +7,7 @@ async function main() {
 
   const Token = await hre.ethers.getContractFactory('CryptoBabyLions')
   const token = await Token.deploy(
-    'ipfs://QmY74JZrwu9r1B5RChzpk3E4TGjPrg3io2tWvbvJmJ3kQx',
+    'ipfs://QmUpqvq3zToq6RHPxSkPLykvFPbPMdeK5dprhp3kotLkWT',
     'ipfs://QmXAZvyHxDV9GY3gehtX5D9TAk4iFjRn3GHEiuxB6s28An/',
     'https://cryptobabylions.com/assets/metadata/',
   )
