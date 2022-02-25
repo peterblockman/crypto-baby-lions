@@ -1,11 +1,12 @@
 {
   "name": "not-azuki-smart-contracts",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "build": "npx hardhat compile",
     "deploy": "npx hardhat run scripts/deploy.js",
+    "whitelist": "npx hardhat run scripts/add-whitelist/index.js",
     "verify": "npx hardhat verify",
     "test": "npx hardhat test",
     "prettier": "prettier --write 'contracts/**/*.sol'"
@@ -29,6 +30,8 @@
     "@openzeppelin/contracts": "^4.4.2",
     "dotenv": "^16.0.0",
     "erc721a": "^2.0.0",
+    "keccak256": "^1.0.6",
+    "merkletreejs": "^0.2.30",
     "truffle-contract-size": "^2.0.1"
   }
 }

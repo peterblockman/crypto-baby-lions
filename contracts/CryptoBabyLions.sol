@@ -8,12 +8,15 @@ import '@openzeppelin/contracts/interfaces/IERC165.sol';
 import '@openzeppelin/contracts/interfaces/IERC2981.sol';
 import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
+import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
+
 
 contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC2981 {
     using Strings for uint256;
     using Counters for Counters.Counter;
 
     struct WhitelistInfo {
+        bytes32 merkleRoot;
         uint256 quantity;
         uint256 price;
     }
@@ -34,8 +37,7 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
     Counters.Counter private _preMintTokenIds;
     Counters.Counter private whitelistPlansCounter;
     mapping(uint256 => WhitelistInfo) public whitelistPlans;
-    mapping(address => uint256) public mintWhitelist;
-    mapping(address => uint256) public mintedCount;
+    mapping(address => mapping(uint256 => uint256)) public mintedCount;
 
     modifier onlyWhitdrawable() {
         require(_msgSender() == withdrawAccount, 'CBL: Not authorzed to withdraw');
@@ -46,7 +48,7 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
         contractMetadata = _contractMetadata;
         baseURI = ipfsURI;
         centralizedURI = _centralizedURI;
-        whitelistPlansCounter.increment(); // index 0 is reserved for public so start from 1
+        whitelistPlansCounter.increment(); // index 0 is reserved for public mint so start from 1
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC721, IERC165) returns (bool) {
@@ -85,44 +87,57 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
         return (address(this), (_salePrice * royalty) / BASE);
     }
 
-    function preMint() public {
+    function freeMint() public {
         address msgSender = _msgSender();
         require(_tokenIds.current() < MAX_TOKENS, 'CBL: That many tokens are not available');
         require(_preMintTokenIds.current() < MAX_PRE_MINT, 'CBL: No more tokens to pre-mint');
-        require(mintedCount[msgSender] == 0, 'CBL: You can only pre-mint once');
+        require(mintedCount[msgSender][0] == 0, 'CBL: You can only pre-mint once');
 
-        mintedCount[msgSender] = 1;
+        mintedCount[msgSender][0] = 1;
         _safeMint(msgSender, _tokenIds.current());
         _preMintTokenIds.increment();
         _tokenIds.increment();
     }
 
-    function mint(uint256 quantity) public payable {
+    function whitelistMint(uint256 quantity, uint whitelistIndex, bytes32[] calldata proof) public payable {
         require(_tokenIds.current() + quantity <= MAX_TOKENS, 'CBL: That many tokens are not available');
         address msgSender = _msgSender();
-        uint256 accountNewMintCount = mintedCount[msgSender] + quantity;
-        uint256 whitelistPlan = mintWhitelist[msgSender];
-        WhitelistInfo memory whitelistInfo = whitelistPlans[whitelistPlan];
+        uint256 accountNewMintCount = mintedCount[msgSender][whitelistIndex] + quantity;
 
-        uint256 price = MINT_PRICE;
-        uint256 maxMintCount = MAX_MINT;
+        WhitelistInfo memory whitelistInfo = whitelistPlans[whitelistIndex];
 
-        if (whitelistPlan > 0) {
-            maxMintCount = whitelistInfo.quantity;
-            price = whitelistInfo.price;
-        } else {
-            require(startBlock <= block.number, 'CBL: Minting time is not started');
-        }
+        require(accountNewMintCount <= whitelistInfo.quantity, 'CBL: That many tokens are not available this account');
 
-        require(accountNewMintCount <= maxMintCount, 'CBL: That many tokens are not available this account');
+        bytes32 leaf = keccak256(abi.encodePacked(msgSender));
+        require(MerkleProof.verify(proof, whitelistInfo.merkleRoot, leaf), 'CBL: Invalid proof');
 
-        uint256 totalPrice = quantity * price;
+        uint256 totalPrice = quantity * whitelistInfo.price;
         require(msg.value >= totalPrice, 'CBL: Need to send more ethers');
         if (msg.value > totalPrice) {
             payable(msgSender).transfer(msg.value - totalPrice);
         }
 
-        mintedCount[msgSender] = accountNewMintCount;
+        mintedCount[msgSender][whitelistIndex] = accountNewMintCount;
+        for (uint256 i = 0; i < quantity; i++) {
+            _safeMint(msgSender, _tokenIds.current());
+            _tokenIds.increment();
+        }
+    }
+    function mint(uint256 quantity) public payable {
+        require(startBlock <= block.number, 'CBL: Minting time is not started');
+        require(_tokenIds.current() + quantity <= MAX_TOKENS, 'CBL: That many tokens are not available');
+        address msgSender = _msgSender();
+        uint256 accountNewMintCount = mintedCount[msgSender][0] + quantity;
+
+        require(accountNewMintCount <= MAX_MINT, 'CBL: That many tokens are not available this account');
+
+        uint256 totalPrice = quantity * MINT_PRICE;
+        require(msg.value >= totalPrice, 'CBL: Need to send more ethers');
+        if (msg.value > totalPrice) {
+            payable(msgSender).transfer(msg.value - totalPrice);
+        }
+
+        mintedCount[msgSender][0] = accountNewMintCount;
         for (uint256 i = 0; i < quantity; i++) {
             _safeMint(msgSender, _tokenIds.current());
             _tokenIds.increment();
@@ -130,17 +145,14 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
     }
 
     function addWhitelist(
-        address[] memory accounts,
+        bytes32 merkleRoot,
         uint256 quantity,
         uint256 price
     ) public onlyOwner {
         uint256 whiteListPlanIndex = whitelistPlansCounter.current();
-        whitelistPlans[whiteListPlanIndex] = WhitelistInfo(quantity, price);
-        for (uint256 i = 0; i < accounts.length; i++) {
-            mintWhitelist[accounts[i]] = whiteListPlanIndex;
-        }
+        whitelistPlans[whiteListPlanIndex] = WhitelistInfo(merkleRoot, quantity, price);
         whitelistPlansCounter.increment();
-        emit WhitelistAdded(accounts, quantity, price);
+        emit WhitelistAdded(merkleRoot, quantity, price);
     }
 
     function setContractMetadata(string memory _contractMetadata) public onlyOwner {
@@ -189,6 +201,6 @@ contract CryptoBabyLions is Ownable, ERC721('Crypto Baby Lions', 'CBL'), IERC298
     }
 
     event ContractWithdraw(address indexed withdrawAddress, uint256 amount);
-    event WhitelistAdded(address[] accounts, uint256 quantity, uint256 price);
+    event WhitelistAdded(bytes32 merkleRoot, uint256 quantity, uint256 price);
     event StartTimeUpdated(uint256 blockNumber);
 }

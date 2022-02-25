@@ -2,7 +2,7 @@ const hre = require('hardhat')
 
 async function main() {
   const [deployer] = await hre.ethers.getSigners()
-  console.log('Deploying contracts with the account:', deployer.address)
+  console.log('Deploying contract with the account:', deployer.address)
   console.log('Account balance:', (await deployer.getBalance()).toString())
 
   const Token = await hre.ethers.getContractFactory('CryptoBabyLions')
