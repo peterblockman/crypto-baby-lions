@@ -1,0 +1,9 @@
+{
+  "contract": "0x0000000000000000000000000000000000000000",
+  "quantity": 5,
+  "price": 0,
+  "id": 0,
+  "addresses": [],
+  "merkleRoot": "",
+  "merkleProofs": {}
+}

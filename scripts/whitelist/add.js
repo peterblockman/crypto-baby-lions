@@ -11,27 +11,26 @@ async function main() {
 
   const Token = await hre.ethers.getContractFactory('CryptoBabyLions')
   const token = await Token.attach(whitelist.contract)
+  
+  const merkleProofs = {}
+  const id = await token.whitelistPlansCounter();
 
   const leafNodes = whitelist.addresses.map((address) => keccak256(address))
   const merkleTree = new MerkleTree(leafNodes, keccak256, { sortPairs: true })
 
   const merkleRoot = merkleTree.getRoot()
-  const merkleProofs = {}
   for (let i = 0; i < whitelist.addresses.length; i++) {
     merkleProofs[whitelist.addresses[i]] = merkleTree.getHexProof(keccak256(whitelist.addresses[i]))
   }
 
+
+  const addWhitelistTx = await token.addWhitelist(merkleRoot, whitelist.quantity, whitelist.price);
+  console.log('Add whitelist tx hash:', addWhitelistTx.hash);
+
   fs.writeFileSync(
     __dirname + '/whitelist.json',
-    JSON.stringify({ ...whitelist, merkleRoot: merkleRoot.toString('hex'), merkleProofs }, null, 2)
+    JSON.stringify({ ...whitelist, id, merkleRoot: merkleRoot.toString('hex'), merkleProofs }, null, 2)
   )
-
-  const addWhitelistTx = await token.addWhitelist(merkleRoot, whitelist.quantity, whitelist.price)
-  console.log(addWhitelistTx.hash)
-  addWhitelistTx.wait(1)
-
-  const mintTx = await token.whitelistMint(2, 1, merkleTree.getHexProof(keccak256(deployer.address)), {gasLimit: 1000000,})
-  console.log(mintTx.hash)
 }
 
 main()
